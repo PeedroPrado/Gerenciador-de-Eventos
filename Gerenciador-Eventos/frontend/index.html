@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Gerenciador de Eventos</title>
+
+  <style>
+    :root{
+      --bg: #f4f6fb;
+      --card: #ffffff;
+      --primary: #3b82f6;
+      --accent: #06b6d4;
+      --danger: #ef4444;
+      --muted: #6b7280;
+      --shadow: 0 6px 20px rgba(16,24,40,0.06);
+      font-family: Inter, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    }
+
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      background: linear-gradient(180deg, #eef2ff 0%, var(--bg) 100%);
+      padding:32px;
+      color:#0f172a;
+      min-height:100vh;
+    }
+
+    .app{
+      max-width:1100px;
+      margin:0 auto;
+      display:grid;
+      grid-template-columns: 420px 1fr;
+      gap:24px;
+      align-items:start;
+    }
+
+    .panel{
+      background:var(--card);
+      border-radius:12px;
+      padding:18px;
+      box-shadow:var(--shadow);
+    }
+
+    header{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      margin-bottom:12px;
+    }
+    header h1{font-size:20px;margin:0}
+    header p{margin:0;color:var(--muted);font-size:13px}
+
+    form .field{display:flex;flex-direction:column;margin-bottom:10px}
+    label{font-size:13px;color:var(--muted);margin-bottom:6px}
+    input[type="text"], input[type="date"], input[type="number"], textarea, select{
+      border:1px solid #e6e9ef;
+      padding:10px 12px;
+      border-radius:8px;
+      font-size:14px;
+      background:#fff;
+    }
+    textarea{min-height:90px;resize:vertical}
+
+    .actions{
+      display:flex;
+      gap:8px;
+      margin-top:8px;
+    }
+    button{
+      border:0;padding:10px 14px;border-radius:10px;font-weight:600;cursor:pointer;
+      box-shadow:0 1px 0 rgba(255,255,255,0.5) inset;
+    }
+    .btn-primary{background:var(--primary);color:white}
+    .btn-secondary{background:#eef2ff;color:var(--primary)}
+    .btn-danger{background:var(--danger);color:white}
+    .btn-ghost{background:transparent;color:var(--muted);border:1px solid #eef2ff}
+
+    /* List area */
+    .list-header{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:12px;
+      margin-bottom:12px;
+    }
+    .search{
+      display:flex;gap:8px;align-items:center;
+    }
+    .search input{
+      padding:8px 10px;border-radius:10px;border:1px solid #e6e9ef;
+    }
+
+    table{
+      width:100%;
+      border-collapse:collapse;
+      background:transparent;
+    }
+    th, td{
+      text-align:left;padding:10px 12px;border-bottom:1px solid #f1f5f9;font-size:14px;
+    }
+    th{color:var(--muted);font-size:12px}
+    tr:hover td{background:rgba(59,130,246,0.03)}
+
+    .small{font-size:13px;color:var(--muted)}
+    .badge{display:inline-block;padding:6px 8px;border-radius:8px;background:#f1f5f9;font-weight:600}
+
+    .msg{
+      margin-top:12px;padding:10px;border-radius:8px;font-weight:600;
+    }
+    .msg.success{background:#ecfeff;color:#065f46}
+    .msg.error{background:#ffefef;color:#7f1d1d}
+
+    .no-data{padding:20px;text-align:center;color:var(--muted)}
+    @media (max-width:980px){
+      .app{grid-template-columns:1fr; padding:16px}
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <!-- Form panel -->
+    <div class="panel" id="formPanel">
+      <header>
+        <div>
+          <h1>Gerenciar Evento</h1>
+          <p>Crie, edite ou exclua eventos</p>
+        </div>
+      </header>
+
+      <form id="eventForm">
+        <input type="hidden" id="eventId" />
+
+        <div class="field">
+          <label for="titulo">Título *</label>
+          <input id="titulo" type="text" placeholder="Nome do evento" required />
+        </div>
+
+        <div class="field">
+          <label for="descricao">Descrição</label>
+          <textarea id="descricao" placeholder="Descrição (opcional)"></textarea>
+        </div>
+
+        <div class="field" style="display:flex;gap:8px">
+          <div style="flex:1">
+            <label for="data">Data *</label>
+            <input id="data" type="date" required />
+          </div>
+          <div style="flex:1">
+            <label for="valor">Valor (R$) *</label>
+            <input id="valor" type="number" step="0.01" placeholder="0.00" required />
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="local">Local *</label>
+          <input id="local" type="text" placeholder="Cidade / Endereço" required />
+        </div>
+
+        <div class="actions">
+          <button type="submit" class="btn-primary" id="saveBtn">Criar Evento</button>
+          <button type="button" class="btn-ghost" id="cancelEdit" style="display:none">Cancelar</button>
+          <button type="button" class="btn-secondary" id="clearBtn">Limpar</button>
+        </div>
+
+        <div id="formMsg" style="margin-top:10px"></div>
+      </form>
+    </div>
+
+    <!-- List panel -->
+    <div class="panel" id="listPanel">
+      <div class="list-header">
+        <div>
+          <h2 style="margin:0">Lista de Eventos</h2>
+          <p class="small" style="margin:4px 0 0">Eventos cadastrados no sistema</p>
+        </div>
+
+        <div style="display:flex;gap:8px;align-items:center">
+          <div class="search">
+            <input id="searchInput" placeholder="Pesquisar por título..." />
+            <button id="searchBtn" class="btn-secondary">Buscar</button>
+          </div>
+          <button id="refreshBtn" class="btn-ghost">Atualizar</button>
+        </div>
+      </div>
+
+      <div id="tableWrap">
+        <table id="eventsTable" aria-live="polite">
+          <thead>
+            <tr>
+              <th>Título</th>
+              <th>Data</th>
+              <th>Local</th>
+              <th>Valor (R$)</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody id="eventsBody">
+            <!-- preenchido por JS -->
+          </tbody>
+        </table>
+        <div id="noData" class="no-data" style="display:none">Nenhum evento encontrado.</div>
+      </div>
+
+      <div id="listMsg" style="margin-top:12px"></div>
+    </div>
+  </div>
+
+  <script>
+    const apiBase = location.origin; // http://localhost:3000
+    const eventForm = document.getElementById('eventForm');
+    const titulo = document.getElementById('titulo');
+    const descricao = document.getElementById('descricao');
+    const dataInput = document.getElementById('data');
+    const localInput = document.getElementById('local');
+    const valor = document.getElementById('valor');
+    const eventId = document.getElementById('eventId');
+    const saveBtn = document.getElementById('saveBtn');
+    const cancelEdit = document.getElementById('cancelEdit');
+    const clearBtn = document.getElementById('clearBtn');
+    const eventsBody = document.getElementById('eventsBody');
+    const noData = document.getElementById('noData');
+    const formMsg = document.getElementById('formMsg');
+    const listMsg = document.getElementById('listMsg');
+
+    const searchInput = document.getElementById('searchInput');
+    const searchBtn = document.getElementById('searchBtn');
+    const refreshBtn = document.getElementById('refreshBtn');
+
+    let editing = false;
+
+    function showMsg(targetEl, text, type='success', timeout=3500){
+      targetEl.innerHTML = '<div class="msg ' + (type==='success' ? 'success' : 'error') + '">' + text + '</div>';
+      if(timeout>0) setTimeout(()=> targetEl.innerHTML = '', timeout);
+    }
+
+    function formatDate(d){
+      const dt = new Date(d);
+      if (isNaN(dt)) return '-';
+      return dt.toLocaleDateString();
+    }
+
+    async function fetchEvents(query = ''){
+      try{
+        const url = query ? apiBase + '/eventos?titulo=' + encodeURIComponent(query) : apiBase + '/eventos';
+        const res = await fetch(url);
+        if(!res.ok) throw new Error('Erro ao buscar eventos');
+        const data = await res.json();
+        renderTable(data);
+        return data;
+      }catch(err){
+        showMsg(listMsg, 'Erro ao carregar eventos: ' + err.message, 'error', 5000);
+        renderTable([]);
+      }
+    }
+
+    function renderTable(events){
+      eventsBody.innerHTML = '';
+      if(!events || events.length === 0){
+        noData.style.display = 'block';
+        document.getElementById('eventsTable').style.display = 'none';
+        return;
+      }
+      noData.style.display = 'none';
+      document.getElementById('eventsTable').style.display = 'table';
+
+      events.forEach(ev => {
+        const tr = document.createElement('tr');
+
+        const tituloTd = document.createElement('td');
+        tituloTd.innerHTML = '<strong>' + escapeHtml(ev.titulo) + '</strong><div class="small">' + (ev.descricao ? escapeHtml(ev.descricao).slice(0,80) : '') + '</div>';
+
+        const dataTd = document.createElement('td');
+        dataTd.textContent = formatDate(ev.data);
+
+        const localTd = document.createElement('td');
+        localTd.textContent = ev.local || '-';
+
+        const valorTd = document.createElement('td');
+        valorTd.textContent = (Number(ev.valor) || 0).toFixed(2);
+
+        const actionsTd = document.createElement('td');
+        actionsTd.style.display = 'flex';
+        actionsTd.style.gap = '8px';
+
+        const editBtn = document.createElement('button');
+        editBtn.className = 'btn-secondary';
+        editBtn.textContent = 'Editar';
+        editBtn.onclick = () => startEdit(ev);
+
+        const delBtn = document.createElement('button');
+        delBtn.className = 'btn-danger';
+        delBtn.textContent = 'Excluir';
+        delBtn.onclick = () => deleteEvent(ev._id || ev.id);
+
+        actionsTd.appendChild(editBtn);
+        actionsTd.appendChild(delBtn);
+
+        tr.appendChild(tituloTd);
+        tr.appendChild(dataTd);
+        tr.appendChild(localTd);
+        tr.appendChild(valorTd);
+        tr.appendChild(actionsTd);
+
+        eventsBody.appendChild(tr);
+      });
+    }
+
+    function escapeHtml(s){
+      if(!s) return '';
+      return s.replace(/[&<>"']/g, (m) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+    }
+
+    eventForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const payload = {
+        titulo: titulo.value.trim(),
+        descricao: descricao.value.trim(),
+        data: dataInput.value,
+        local: localInput.value.trim(),
+        valor: parseFloat(valor.value || 0)
+      };
+
+      // validação básica
+      if(!payload.titulo || !payload.data || !payload.local || isNaN(payload.valor)){
+        showMsg(formMsg, 'Preencha os campos obrigatórios corretamente.', 'error');
+        return;
+      }
+
+      try{
+        if(editing && eventId.value){
+          // atualizar
+          const id = eventId.value;
+          const res = await fetch(apiBase + '/eventos/' + id, {
+            method: 'PUT',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify(payload)
+          });
+          if(!res.ok) throw new Error('Falha ao atualizar');
+          const json = await res.json();
+          showMsg(formMsg, 'Evento atualizado com sucesso!');
+          resetForm();
+          await fetchEvents();
+        } else {
+          // criar
+          const res = await fetch(apiBase + '/eventos', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify(payload)
+          });
+          if(res.status === 201 || res.ok){
+            showMsg(formMsg, 'Evento criado com sucesso!');
+            resetForm();
+            await fetchEvents();
+          } else {
+            const txt = await res.text();
+            throw new Error(txt || 'Erro ao criar evento');
+          }
+        }
+      }catch(err){
+        showMsg(formMsg, 'Erro: ' + err.message, 'error', 5000);
+      }
+    });
+
+    function startEdit(ev){
+      editing = true;
+      eventId.value = ev._id || ev.id || '';
+      titulo.value = ev.titulo || '';
+      descricao.value = ev.descricao || '';
+      // form expects yyyy-mm-dd
+      if(ev.data) {
+        const d = new Date(ev.data);
+        dataInput.value = d.toISOString().slice(0,10);
+      } else dataInput.value = '';
+      localInput.value = ev.local || '';
+      valor.value = (ev.valor || 0);
+
+      saveBtn.textContent = 'Salvar Alterações';
+      cancelEdit.style.display = 'inline-block';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    cancelEdit.addEventListener('click', (e) => {
+      resetForm();
+    });
+
+    clearBtn.addEventListener('click', (e) => {
+      resetForm();
+    });
+
+    function resetForm(){
+      editing = false;
+      eventId.value = '';
+      titulo.value = '';
+      descricao.value = '';
+      dataInput.value = '';
+      localInput.value = '';
+      valor.value = '';
+      saveBtn.textContent = 'Criar Evento';
+      cancelEdit.style.display = 'none';
+      formMsg.innerHTML = '';
+    }
+
+    async function deleteEvent(id){
+      if(!id) return showMsg(listMsg, 'ID do evento inválido', 'error');
+      if(!confirm('Deseja realmente excluir este evento?')) return;
+      try{
+        const res = await fetch(apiBase + '/eventos/' + id, { method: 'DELETE' });
+        if(!res.ok) throw new Error('Falha ao excluir');
+        showMsg(listMsg, 'Evento excluído com sucesso!');
+        await fetchEvents();
+      }catch(err){
+        showMsg(listMsg, 'Erro: ' + err.message, 'error', 5000);
+      }
+    }
+
+    searchBtn.addEventListener('click', () => {
+      fetchEvents(searchInput.value.trim());
+    });
+    refreshBtn.addEventListener('click', () => {
+      searchInput.value = '';
+      fetchEvents();
+    });
+
+    // carregar inicial
+    fetchEvents();
+  </script>
+</body>
+</html>
